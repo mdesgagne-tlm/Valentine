@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Be My Valentine?</title>
+  <style>
+    body{
+      margin:0;
+      height:100vh;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      font-family:'Comic Sans MS','Segoe UI',cursive;
+      overflow:hidden;
+    }
+
+    .card{
+      background:#fff;
+      padding:40px 50px;
+      border-radius:25px;
+      text-align:center;
+      box-shadow:0 20px 40px rgba(0,0,0,0.15);
+      width:min(520px, 92vw);
+    }
+
+    h1{
+      color:#ff4d6d;
+      margin:0 0 18px 0;
+      font-size:2.2em;
+    }
+
+    .sub{
+      margin:0 0 18px 0;
+      color:#ff6b81;
+      font-size:1.05em;
+      opacity:.9;
+    }
+
+    .button-row{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:16px;
+      min-height:64px;
+    }
+
+    button{
+      padding:15px 30px;
+      font-size:1.15em;
+      border-radius:999px;
+      border:none;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .18s ease;
+      white-space: nowrap;
+    }
+
+    #yesBtn{
+      background:#ff4d6d;
+      color:#fff;
+    }
+    #yesBtn:hover{ transform: scale(1.08); }
+
+    #noBtn{
+      background:#ffd6dc;
+      color:#ff4d6d;
+      position:static; /* starts in flow (side-by-side centered) */
+    }
+
+    .tease{
+      margin-top:14px;
+      min-height:24px;
+      color:#ff4d6d;
+      opacity:.85;
+      font-size:1.05em;
+    }
+
+    .love{
+      font-size:2em;
+      margin-top:18px;
+      color:#ff4d6d;
+      display:none;
+    }
+
+    .photo{
+      display:none;
+      margin:16px auto 0 auto;
+      width:min(420px, 85vw);
+      border-radius:18px;
+      box-shadow:0 14px 30px rgba(0,0,0,0.18);
+    }
+
+    /* tiny shake animation for extra sass */
+    @keyframes wiggle {
+      0% { transform: translateX(0) rotate(0deg); }
+      25% { transform: translateX(-2px) rotate(-1deg); }
+      50% { transform: translateX(2px) rotate(1deg); }
+      75% { transform: translateX(-1px) rotate(-1deg); }
+      100% { transform: translateX(0) rotate(0deg); }
+    }
+    .wiggle { animation: wiggle .25s ease-in-out; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>Would you be my Valentine? 💖</h1>
+    <p class="sub">I promise I’m very easy to convince 😇</p>
+
+    <div class="button-row">
+      <button id="yesBtn">YES 💕</button>
+      <button id="noBtn">NO 🙃</button>
+    </div>
+
+    <div class="tease" id="tease"></div>
+    <div class="love" id="loveMessage">I knew it!!! 🥰💘</div>
+
+    <img
+      id="valentinePhoto"
+      class="photo"
+      alt="Valentine photo"
+      src=""
+    />
+  </div>
+
+  <script>
+    const yesBtn = document.getElementById("yesBtn");
+    const noBtn  = document.getElementById("noBtn");
+    const tease  = document.getElementById("tease");
+    const loveMessage = document.getElementById("loveMessage");
+    const photo = document.getElementById("valentinePhoto");
+
+    // Google Drive direct-view image URL (make sure sharing is "Anyone with the link can view")
+    const photoUrl = "https://lh3.googleusercontent.com/d/1N26YtZ4Wxim5VTmQ7EdIzGVtCYcRB3pj";
+
+    const PAD = 10;
+    let triggerRadius = 90;
+    let noIsFixed = false;
+    let attempts = 0;
+
+    const noLabels = [
+      "NO 🙃",
+      "NO?? 😳",
+      "WAIT— 😭",
+      "STOP 😵",
+      "PLS 😩",
+      "OK FINE 🙄",
+      "NEVER 😈",
+      "…maybe? 😶"
+    ];
+
+    const teaseLines = [
+      "Choose wisely… 😏",
+      "No is kinda shy…",
+      "Hey! That’s cheating! 😤",
+      "WHY are you chasing it 😂",
+      "It’s getting faster 😈",
+      "You’re committed, huh? 😳",
+      "At this point just say YES 😭",
+      "I’m begging 💀"
+    ];
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+    function makeNoFixed() {
+      if (noIsFixed) return;
+
+      const r = noBtn.getBoundingClientRect();
+      noBtn.style.position = "fixed";
+      noBtn.style.left = r.left + "px";
+      noBtn.style.top  = r.top  + "px";
+      noBtn.style.margin = "0";
+      noBtn.style.zIndex = "9999";
+      noIsFixed = true;
+    }
+
+    function keepNoOnScreen() {
+      if (!noIsFixed) return;
+      const r = noBtn.getBoundingClientRect();
+      const maxX = window.innerWidth  - r.width  - PAD;
+      const maxY = window.innerHeight - r.height - PAD;
+
+      const left = parseFloat(noBtn.style.left) || r.left;
+      const top  = parseFloat(noBtn.style.top)  || r.top;
+
+      noBtn.style.left = clamp(left, PAD, maxX) + "px";
+      noBtn.style.top  = clamp(top,  PAD, maxY) + "px";
+    }
+
+    function updateEscalation() {
+      attempts++;
+
+      // Escalate how early it flees (cap so it stays playable)
+      triggerRadius = clamp(90 + attempts * 10, 90, 170);
+
+      // Loop text forever
+      noBtn.textContent = noLabels[attempts % noLabels.length];
+      tease.textContent = teaseLines[attempts % teaseLines.length];
+
+      // quick wiggle for personality
+      noBtn.classList.remove("wiggle");
+      void noBtn.offsetWidth; // restart animation
+      noBtn.classList.add("wiggle");
+    }
+
+    // Pick a position FAR from the cursor (feels smarter, less flicker)
+    function moveNoFarFrom(xCursor, yCursor) {
+      const r = noBtn.getBoundingClientRect();
+      const maxX = window.innerWidth  - r.width  - PAD;
+      const maxY = window.innerHeight - r.height - PAD;
+
+      let best = { x: PAD, y: PAD, d: -1 };
+
+      const tries = 18;
+      for (let i = 0; i < tries; i++) {
+        const x = Math.random() * (maxX - PAD) + PAD;
+        const y = Math.random() * (maxY - PAD) + PAD;
+        const cx = x + r.width / 2;
+        const cy = y + r.height / 2;
+        const d = Math.hypot(xCursor - cx, yCursor - cy);
+
+        if (d > best.d) best = { x, y, d };
+      }
+
+      noBtn.style.left = clamp(best.x, PAD, maxX) + "px";
+      noBtn.style.top  = clamp(best.y, PAD, maxY) + "px";
+    }
+
+    function maybeFlee(clientX, clientY) {
+      const r = noBtn.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top  + r.height / 2;
+      const dist = Math.hypot(clientX - cx, clientY - cy);
+
+      if (dist < triggerRadius) {
+        makeNoFixed();
+        updateEscalation();
+        moveNoFarFrom(clientX, clientY);
+      }
+    }
+
+    // Desktop: flee when you get close
+    document.addEventListener("mousemove", (e) => {
+      maybeFlee(e.clientX, e.clientY);
+    });
+
+    // Mobile / touch: flee when you try to tap it
+    noBtn.addEventListener("pointerdown", (e) => {
+      const x = e.clientX || (window.innerWidth / 2);
+      const y = e.clientY || (window.innerHeight / 2);
+      makeNoFixed();
+      updateEscalation();
+      moveNoFarFrom(x, y);
+      e.preventDefault();
+    });
+
+    // Keep it visible if the window resizes
+    window.addEventListener("resize", () => {
+      keepNoOnScreen();
+    });
+
+    yesBtn.addEventListener("click", () => {
+      loveMessage.style.display = "block";
+      tease.textContent = "Best answer ever";
+      noBtn.style.display = "none";
+
+      photo.src = photoUrl;
+      photo.style.display = "block";
+    });
+
+    // initial tease text
+    tease.textContent = "Choose wisely… 😏";
+  </script>
+
+</body>
+</html>
